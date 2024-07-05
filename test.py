@@ -12,3 +12,8 @@ bot = mineflayer.createBot({
     "version": os.getenv("TARGET_VERSION"),
     "hideErrors": False
 })
+
+@On(bot, "login")
+def login(this):
+    pass
+
