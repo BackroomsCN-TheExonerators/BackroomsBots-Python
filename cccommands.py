@@ -1,4 +1,3 @@
-from typing import List, Any, Type, Dict
 import re
 
 from javascript import require, On, Once, AsyncTask, once, off
@@ -9,11 +8,11 @@ Vec3 = require('vec3')
 
 
 class CommandBuilder:
-    def __init__(self, name: str, *param_types: Type, continued_params: bool = False):
+    def __init__(self, name: str, *param_types: type, continued_params: bool = False):
         self.name = name
         self.param_types = param_types
         self.continued_params = continued_params
-        self.subcommands: Dict[str, CommandBuilder] = {}
+        self.subcommands: dict[str, CommandBuilder] = {}
 
     def add_subcommand(self, subcommand: 'CommandBuilder'):
         self.subcommands[subcommand.name] = subcommand
@@ -27,7 +26,7 @@ class CommandParser:
     def register_command(self, builder: CommandBuilder):
         self.commands[builder.name] = builder
 
-    def parse(self, command_string: str) -> tuple[str, List[Any]]:
+    def parse(self, command_string: str) -> tuple[str, list[any]]:
         parts = command_string.split(maxsplit=1)
         command_name = parts[0]
         args_string = parts[1] if len(parts) > 1 else ""
@@ -38,7 +37,7 @@ class CommandParser:
         builder = self.commands[command_name]
         return self._parse_command(builder, args_string)
 
-    def _parse_command(self, builder: CommandBuilder, args_string: str) -> tuple[str, List[Any]]:
+    def _parse_command(self, builder: CommandBuilder, args_string: str) -> tuple[str, list[any]]:
         if builder.subcommands:
             subcommand_parts = args_string.split(maxsplit=1)
             if not subcommand_parts:
@@ -63,13 +62,13 @@ class CommandParser:
 
         return builder.name, args
 
-    def _parse_continued_params(self, args_string: str, param_type: Type) -> List[Any]:
+    def _parse_continued_params(self, args_string: str, param_type: type) -> list[any]:
         if param_type == Vec3:
             return [self._parse_vec3(s) for s in re.findall(r'\([^)]+\)', args_string)]
         else:
             return args_string.split()
 
-    def _parse_multiple_params(self, args_string: str, param_types: List[Type]) -> List[Any]:
+    def _parse_multiple_params(self, args_string: str, param_types: list[type]) -> list[any]:
         args = []
         remaining = args_string.strip()
 
@@ -127,6 +126,9 @@ patrol_command = (
     .add_subcommand(CommandBuilder("config", str, str))
 )
 
+# print(patrol_command.name)
+# print(patrol_command.subcommands)
+
 parser.register_command(patrol_command)
 parser.register_command(CommandBuilder("cmdout", str))
 parser.register_command(CommandBuilder("setPatrol", str, bool))
@@ -137,7 +139,7 @@ commands = [
     'patrol stop',
     'patrol start',
     'patrol config "configKey" "configValue"',
-    'cmdout "/login Type32__"',
+    'cmdout "/login type32__"',
     'cmdout "/tp @a @s"',
     'setPatrol "Main Route" true'
 ]

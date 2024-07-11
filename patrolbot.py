@@ -4,6 +4,7 @@ import dotenv
 from javascript import require, On, Once, AsyncTask, once, off
 from simple_chalk import chalk
 import re
+from cccommands import CommandParser, CommandBuilder
 
 # Import required JavaScript libraries
 mineflayer = require('mineflayer')
@@ -21,6 +22,10 @@ SERVER_PORT = os.getenv("TARGET_PORT")
 
 print(f"{BOT_USERNAME}@{SERVER_HOST}:{SERVER_PORT}:{TARGET_VERSION}")
 
+cmd_parser = CommandParser()
+cmd_parser.register_command(CommandBuilder("patrol", Vec3, continued_params=True))
+cmd_parser.register_command(CommandBuilder("patrolStart"))
+cmd_parser.register_command(CommandBuilder("patrolStop"))
 
 class PatrolBot:
     def __init__(self):
