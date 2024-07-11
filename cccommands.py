@@ -1,4 +1,4 @@
-from typing import List, Any, Type
+from typing import List, Any, Type, Dict
 import re
 
 from javascript import require, On, Once, AsyncTask, once, off
@@ -7,11 +7,18 @@ navigatePlugin = require('mineflayer-navigate')(mineflayer)
 pathfinder = require('mineflayer-pathfinder')
 Vec3 = require('vec3')
 
+
 class CommandBuilder:
     def __init__(self, name: str, *param_types: Type, continued_params: bool = False):
         self.name = name
         self.param_types = param_types
         self.continued_params = continued_params
+        self.subcommands: Dict[str, CommandBuilder] = {}
+
+    def add_subcommand(self, subcommand: 'CommandBuilder'):
+        self.subcommands[subcommand.name] = subcommand
+        return self
+
 
 class CommandParser:
     def __init__(self):
@@ -29,8 +36,24 @@ class CommandParser:
             raise ValueError(f"Unknown command: {command_name}")
 
         builder = self.commands[command_name]
-        args = []
+        return self._parse_command(builder, args_string)
 
+    def _parse_command(self, builder: CommandBuilder, args_string: str) -> tuple[str, List[Any]]:
+        if builder.subcommands:
+            subcommand_parts = args_string.split(maxsplit=1)
+            if not subcommand_parts:
+                raise ValueError(f"Subcommand required for '{builder.name}'")
+            subcommand_name = subcommand_parts[0]
+            subcommand_args = subcommand_parts[1] if len(subcommand_parts) > 1 else ""
+
+            if subcommand_name not in builder.subcommands:
+                raise ValueError(f"Unknown subcommand '{subcommand_name}' for '{builder.name}'")
+
+            subbuilder = builder.subcommands[subcommand_name]
+            subcmd, args = self._parse_command(subbuilder, subcommand_args)
+            return f"{builder.name} {subcmd}", args
+
+        args = []
         if builder.continued_params:
             args = self._parse_continued_params(args_string, builder.param_types[0])
         elif len(builder.param_types) == 1 and builder.param_types[0] == str:
@@ -38,7 +61,7 @@ class CommandParser:
         else:
             args = self._parse_multiple_params(args_string, builder.param_types)
 
-        return command_name, args
+        return builder.name, args
 
     def _parse_continued_params(self, args_string: str, param_type: Type) -> List[Any]:
         if param_type == Vec3:
@@ -57,7 +80,7 @@ class CommandParser:
                     if end == -1:
                         raise ValueError("Unclosed string argument")
                     arg = remaining[1:end]
-                    remaining = remaining[end+1:].strip()
+                    remaining = remaining[end + 1:].strip()
                 else:
                     parts = remaining.split(maxsplit=1)
                     arg = parts[0]
@@ -96,18 +119,27 @@ class CommandParser:
 # Example usage
 parser = CommandParser()
 
-parser.register_command(CommandBuilder("patrol", Vec3, continued_params=True))
+patrol_command = (
+    CommandBuilder("patrol")
+    .add_subcommand(CommandBuilder("set", Vec3, continued_params=True))
+    .add_subcommand(CommandBuilder("stop"))
+    .add_subcommand(CommandBuilder("start"))
+    .add_subcommand(CommandBuilder("config", str, str))
+)
+
+parser.register_command(patrol_command)
 parser.register_command(CommandBuilder("cmdout", str))
-parser.register_command(CommandBuilder("setPatrol", str, bool, bool))
-parser.register_command(CommandBuilder("startPatrol"))
+parser.register_command(CommandBuilder("setPatrol", str, bool))
 
 # Test the parser
 commands = [
-    'patrol (20,30,28) (20,30,37) (20,38,49)',
+    'patrol set (20,30,28) (20,30,37) (20,38,49)',
+    'patrol stop',
+    'patrol start',
+    'patrol config "configKey" "configValue"',
     'cmdout "/login Type32__"',
     'cmdout "/tp @a @s"',
-    'setPatrol "Main Route" true false',
-    'startPatrol'
+    'setPatrol "Main Route" true'
 ]
 
 for cmd in commands:
