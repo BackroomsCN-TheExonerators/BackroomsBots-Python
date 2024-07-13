@@ -141,11 +141,15 @@ commands = [
     'patrol config "configKey" "configValue"',
     'cmdout "/login type32__"',
     'cmdout "/tp @a @s"',
-    'setPatrol "Main Route" true'
+    'setPatrol "Main Route" true',
+    'help'
 ]
 
 for cmd in commands:
-    name, args = parser.parse(cmd)
-    print(f"Command: {name}")
-    print(f"Arguments: {args}")
-    print()
+    try:
+        name, args = parser.parse(cmd)
+        print(f"Command: {name}")
+        print(f"Arguments: {args}")
+        print()
+    except Exception as e:
+        print(f'Failed to parse command "{cmd}" with the error: "{e}"')
