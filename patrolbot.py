@@ -1,5 +1,6 @@
 import os
 import dotenv
+import jwt
 
 from javascript import require, On, Once, AsyncTask, once, off
 from simple_chalk import chalk
@@ -20,19 +21,48 @@ TARGET_VERSION = os.getenv('TARGET_VERSION')
 SERVER_HOST = os.getenv("TARGET_HOST")
 SERVER_PORT = os.getenv("TARGET_PORT")
 USAGE_WHITELIST = os.getenv('USAGE_WHITELIST')
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
 
 whitelist: list[str] = USAGE_WHITELIST.split(',')
 
 print(f"{BOT_USERNAME}@{SERVER_HOST}:{SERVER_PORT}:{TARGET_VERSION}")
 
 cmd_parser = CommandParser()
-cmd_parser.register_command(CommandBuilder("patrol", Vec3, continued_params=True))
-cmd_parser.register_command(CommandBuilder("patrolStart"))
-cmd_parser.register_command(CommandBuilder("patrolStop"))
+cmd_parser.register_command(
+    CommandBuilder("patrol")
+        .add_subcommand(CommandBuilder("set", Vec3, continued_params=True))
+        .add_subcommand(CommandBuilder("get"))
+        .add_subcommand(CommandBuilder("start"))
+        .add_subcommand(CommandBuilder("stop"))
+)
+cmd_parser.register_command(
+    CommandBuilder("overseer")
+        .add_subcommand(CommandBuilder("bind"))
+        .add_subcommand(CommandBuilder("unbind"))
+        .add_subcommand(CommandBuilder("report"))
+        .add_subcommand(CommandBuilder("receive", str))
+)
 
-class PatrolBot:
+
+class OverseerBot:
     def __init__(self):
-        print("Initializing patrolbot...")
+        print("Initialized Base Class Bot.")
+
+    def from_jwt(self, token: str):
+        try:
+            decoded_payload = jwt.decode(token, ENCRYPTION_KEY, algorithms=["HS256"])
+            return decoded_payload['command']
+            # print(f"Decoded payload: {decoded_payload}")
+        except jwt.ExpiredSignatureError:
+            print("Token has expired")
+        except jwt.InvalidTokenError:
+            print("Invalid token")
+        return 'unknownpayload'
+
+
+class PatrolBot(OverseerBot):
+    def __init__(self):
+        super().__init__()
         self.bot = mineflayer.createBot({
             'host': SERVER_HOST,
             'port': SERVER_PORT,
@@ -84,12 +114,23 @@ class PatrolBot:
                 self.last_invoked_user = user
                 if cmd.endswith('set'):
                     self.set_patrol_points(args)
-                if cmd.endswith('start'):
+                elif cmd.endswith('start'):
                     self.start_patrol()
                 elif cmd.endswith('stop'):
                     self.stop_patrol()
-                else:
-                    self.log(f"Unknown message: {parsed_msg}")
+            elif cmd.startswith('overseer'):
+                self.last_invoked_user = user
+                if cmd.endswith('bind'):
+                    self.bot.whisper(user, "Binded.")
+                elif cmd.endswith('unbind'):
+                    self.bot.whisper(user, "Unbinded.")
+                elif cmd.endswith('report'):
+                    self.bot.whisper(user, "Report:")
+                elif cmd.endswith('receive'):
+                    encrypted_msg = super().from_jwt(args[0])
+                    handle_chat(user, encrypted_msg, translate, jsonMsg, matches)
+            else:
+                self.log(f"Unknown message: {parsed_msg}")
 
         @On(self.bot, "end")
         def end(this, reason):
